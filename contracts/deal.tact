@@ -7,6 +7,10 @@ message AddUser {
     approved: Bool;
 }
 
+message Reward {
+    addr: Address;
+}
+
 struct User {
     amount: Int;
     approved: Bool;
@@ -18,6 +22,14 @@ struct DealInfo {
     arbiterFee: Int;
     mainFee: Int;
     approved: Bool;
+    draw: Bool;
+}
+
+struct DebugInfo {
+    balance: Int;
+    f1: Int;
+    f2: Int;
+    f3: Int;
 }
 
 contract Deal with Deployable, Ownable {
@@ -26,6 +38,7 @@ contract Deal with Deployable, Ownable {
     arbiterFee: Int as uint16;
     mainFee: Int as uint16;
     approved: Bool;
+    draw: Bool;
     seed: Int;
 
     users: map<Address, User>;
@@ -41,6 +54,7 @@ contract Deal with Deployable, Ownable {
         self.mainFee = mainFee;
         self.seed = seed;
         self.approved = false;
+        self.draw = false;
         self.countUsers = 0;
         self.usersAmount = 0;
         self.usersApproved = 0;
@@ -60,8 +74,11 @@ contract Deal with Deployable, Ownable {
     }
 
     receive(msg: AddUser) {
-        require(!self.approved, "Deal closed for changing");
-        let sender: Address = context().sender;
+        let ctx: Context = context();
+        require(!self.draw, "Deal closed");
+        require(ctx.value >= msg.amount, "Insufficient funds"); // add fee
+
+        let sender: Address = ctx.sender;
         let user: User? = self.users.get(sender);
 
         if (user == null) {
@@ -72,6 +89,7 @@ contract Deal with Deployable, Ownable {
     }
 
     receive("approve") {
+        require(!self.draw, "Deal closed");
         let sender: Address = context().sender;
         let user: User? = self.users.get(sender);
         require(user != null, "Unknown participant");
@@ -79,7 +97,7 @@ contract Deal with Deployable, Ownable {
         self.change_user(user!!, sender, 0, true, false);
     }
 
-    receive("refuse") {
+    receive("withdraw") {
         let sender: Address = context().sender;
         let usr: User? = self.users.get(sender);
         require(usr != null, "Unknown participant");
@@ -87,15 +105,51 @@ contract Deal with Deployable, Ownable {
 
         self.change_user(user, sender, 0, false, true);
 
-        if (!self.approved) {
-            self.send_to_user(sender, user.amount.sub_fee(self.mainFee));
+        if (!self.approved || self.draw) {
+            if (self.draw) {
+                let sumWithArbiterFee: Int = self.usersAmount * self.arbiterFee / 1000000;
+                let arbiterFee: Int = self.usersAmount - sumWithArbiterFee;
+                let sumWithAllFee: Int  = sumWithArbiterFee - sumWithArbiterFee * self.mainFee / 1000000;
+                self.send_to_user(sender, sumWithAllFee);
+                self.send_to_user(self.arbiter, arbiterFee);
+
+                // let sumWithArbiterFee: Int = self.usersAmount.sub_fee(self.arbiterFee);
+                // let arbiterFee: Int = self.usersAmount - sumWithArbiterFee;
+                // self.send_to_user(sender, sumWithArbiterFee.sub_fee(self.mainFee));
+                // self.send_to_user(self.arbiter, arbiterFee);
+            } else {
+                let sum: Int = user.amount - user.amount * self.mainFee / 1000000;
+                self.send_to_user(sender, sum); 
+                // self.send_to_user(sender, user.amount.sub_fee(self.mainFee)); 
+            }
             self.remove_user(user, sender);
             if (self.countUsers == 0) {
-                // send to owner
+                self.send_to_owner();
             }
         }
     }
 
+    receive(msg: Reward) {
+        require(self.arbiter == context().sender, "Access denied");
+        require(self.approved, "The deal is not completed");
+
+        if (self.users.get(msg.addr) == null) {
+            self.draw = true;
+        } else {
+            let sumWithArbiterFee: Int = self.usersAmount * self.arbiterFee / 1000000;
+            let arbiterFee: Int = self.usersAmount - sumWithArbiterFee;
+            let sumWithAllFee: Int  = sumWithArbiterFee - sumWithArbiterFee * self.mainFee / 1000000;
+            self.send_to_user(msg.addr, sumWithAllFee);
+            self.send_to_user(self.arbiter, arbiterFee);
+            self.send_to_owner();
+
+            // let sumWithArbiterFee: Int = self.usersAmount.sub_fee(self.arbiterFee);
+            // let arbiterFee: Int = self.usersAmount - sumWithArbiterFee;
+            // self.send_to_user(msg.addr, sumWithArbiterFee.sub_fee(self.mainFee));
+            // self.send_to_user(self.arbiter, arbiterFee);
+            // self.send_to_owner();
+        }
+    }
 
     fun add_user(addr: Address, amount: Int, approved: Bool, refused: Bool) {
         self.users.set(addr, User{
@@ -133,10 +187,6 @@ contract Deal with Deployable, Ownable {
             self.usersRefused -= 1;
         }
 
-        if (self.usersRefused == self.countUsers) {
-            self.approved = false;
-        }
-
         if (self.countUsers > 1 && self.usersApproved == self.countUsers) {
             self.approved = true;
         }
@@ -158,7 +208,6 @@ contract Deal with Deployable, Ownable {
         }
     }
 
-
     fun send_to_user(addr: Address, amount: Int) {
         send(SendParameters{
             to: addr,
@@ -179,7 +228,6 @@ contract Deal with Deployable, Ownable {
 
     }
 
-
     // get methods
 
     get fun get_participants(): map<Address, User> {
@@ -191,12 +239,25 @@ contract Deal with Deployable, Ownable {
             arbiter: self.arbiter,
             arbiterFee: self.arbiterFee,
             mainFee: self.mainFee,
-            approved: self.approved
+            approved: self.approved,
+            draw: self.draw
         };
+    }
+
+    get fun debug_info(): DebugInfo {
+        let sumWithArbiterFee: Int = self.usersAmount * self.arbiterFee / 1000000;
+        let arbiterFee: Int = self.usersAmount - sumWithArbiterFee;
+        let sumWithAllFee: Int  = sumWithArbiterFee - sumWithArbiterFee * self.mainFee / 1000000;
+        return DebugInfo{
+            balance: myBalance(),
+            f1: sumWithArbiterFee,
+            f2: arbiterFee,
+            f3: sumWithAllFee
+            };
     }
 
 }
 
-extends fun sub_fee(self: Int, fee: Int): Int {
-    return self * fee / 1000000;
-}
+// extends fun sub_fee(self: Int, fee: Int): Int {
+//     return self - self * fee / 1000000;
+// }

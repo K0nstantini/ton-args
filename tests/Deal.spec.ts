@@ -19,7 +19,7 @@ describe('Deal', () => {
 		creator = await blockchain.treasury('creator');
 
 		deal = blockchain.openContract(await Deal.fromInit(
-			deployer.address, arbiter.address, 10000n, 500n, 1n
+			deployer.address, arbiter.address, 10000n, 5000n, 1n
 		));
 
 
@@ -60,6 +60,8 @@ describe('Deal', () => {
 		});
 
 		var users = await deal.getGetParticipants();
+		// console.log("Should 10");
+		// console.log(users);
 		expect(users.size).toEqual(1);
 		var user = users.get(creator.address);
 		expect(user).not.toBeUndefined();
@@ -83,6 +85,8 @@ describe('Deal', () => {
 		});
 
 		var users = await deal.getGetParticipants();
+		// console.log("Should 20");
+		// console.log(users);
 		expect(users.size).toEqual(1);
 		var user = users.get(creator.address);
 		expect(user).not.toBeUndefined();
@@ -93,7 +97,7 @@ describe('Deal', () => {
 		// second user
 		const secondUser = await blockchain.treasury('secondUser');
 		res = await deal.send(secondUser.getSender(), {
-			value: toNano('10.05')
+			value: toNano('30.05')
 		}, {
 			$$type: 'AddUser',
 			amount: toNano('30'),
@@ -116,6 +120,49 @@ describe('Deal', () => {
 		var info = await deal.getGetInfo();
 		expect(info.approved).toBeFalsy();
 
+		// creator withdraw
+		res = await deal.send(creator.getSender(), {
+			value: toNano('0.05')
+		}, "withdraw");
+
+		expect(res.transactions).toHaveTransaction({
+			from: creator.address,
+			to: deal.address,
+			success: true,
+		});
+
+		expect(res.transactions).toHaveTransaction({
+			from: deal.address,
+			to: creator.address,
+			success: true,
+		});
+
+		var users = await deal.getGetParticipants();
+		expect(users.size).toEqual(1);
+
+		// creator join again
+		res = await deal.send(creator.getSender(), {
+			value: toNano('20.05')
+		}, {
+			$$type: 'AddUser',
+			amount: toNano('20'),
+			approved: false
+		});
+
+		expect(res.transactions).toHaveTransaction({
+			from: creator.address,
+			to: deal.address,
+			success: true,
+		});
+
+		var users = await deal.getGetParticipants();
+		expect(users.size).toEqual(2);
+		var user = users.get(creator.address);
+		expect(user).not.toBeUndefined();
+		if (!user) return;
+		expect(user.amount).toEqual(toNano('20'));
+		expect(user.approved).toBeFalsy();
+
 		// creator approve
 		res = await deal.send(creator.getSender(), {
 			value: toNano('0.05')
@@ -129,6 +176,50 @@ describe('Deal', () => {
 
 		info = await deal.getGetInfo();
 		expect(info.approved).toBeTruthy();
+
+               // arbiter result
+
+		console.log(`Deal: ${deal.address}`);
+		console.log(`Deployer: ${deployer.address}`);
+		console.log(`Arbiter: ${arbiter.address}`);
+		console.log(`Second user: ${secondUser.address}`);
+
+		let debuInfo = await deal.getDebugInfo();
+		console.log(debuInfo);
+		users = await deal.getGetParticipants();
+		console.log(users);
+
+		res = await deal.send(arbiter.getSender(), {
+			value: toNano('0.05')
+		}, {
+			$$type: 'Reward',
+			addr: secondUser.address,
+		});
+
+		expect(res.transactions).toHaveTransaction({
+			from: arbiter.address,
+			to: deal.address,
+			success: true,
+		});
+
+		expect(res.transactions).toHaveTransaction({
+			from: deal.address,
+			to: secondUser.address,
+			success: true,
+		});
+
+		expect(res.transactions).toHaveTransaction({
+			from: deal.address,
+			to: arbiter.address,
+			success: true,
+		});
+
+		expect(res.transactions).toHaveTransaction({
+			from: deal.address,
+			to: deployer.address,
+			success: true,
+		});
+
 
 	});
 
