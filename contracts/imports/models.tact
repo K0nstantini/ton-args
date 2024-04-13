@@ -1,5 +1,5 @@
 message CreateDeal {
     from: Address;
-    amount: Int;
+    amount: Int as coins;
     approved: Bool;
 }

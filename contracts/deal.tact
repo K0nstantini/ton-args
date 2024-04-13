@@ -3,7 +3,7 @@ import "@stdlib/ownable";
 import "./imports/models.tact";
 
 message AddUser {
-    amount: Int;
+    amount: Int as coins;
     approved: Bool;
 }
 
@@ -12,7 +12,7 @@ message Reward {
 }
 
 struct User {
-    amount: Int;
+    amount: Int as coins;
     approved: Bool;
     refused: Bool;
 }
@@ -23,13 +23,6 @@ struct DealInfo {
     mainFee: Int;
     approved: Bool;
     draw: Bool;
-}
-
-struct DebugInfo {
-    balance: Int;
-    f1: Int;
-    f2: Int;
-    f3: Int;
 }
 
 contract Deal with Deployable, Ownable {
@@ -43,7 +36,7 @@ contract Deal with Deployable, Ownable {
 
     users: map<Address, User>;
     countUsers: Int as uint16;
-    usersAmount: Int;
+    usersAmount: Int as coins;
     usersApproved: Int as uint16;
     usersRefused: Int as uint16;
 
@@ -242,18 +235,6 @@ contract Deal with Deployable, Ownable {
             approved: self.approved,
             draw: self.draw
         };
-    }
-
-    get fun debug_info(): DebugInfo {
-        let sumWithArbiterFee: Int = self.usersAmount * self.arbiterFee / 1000000;
-        let arbiterFee: Int = self.usersAmount - sumWithArbiterFee;
-        let sumWithAllFee: Int  = sumWithArbiterFee - sumWithArbiterFee * self.mainFee / 1000000;
-        return DebugInfo{
-            balance: myBalance(),
-            f1: sumWithArbiterFee,
-            f2: arbiterFee,
-            f3: sumWithAllFee
-            };
     }
 
 }

@@ -60,8 +60,6 @@ describe('Deal', () => {
 		});
 
 		var users = await deal.getGetParticipants();
-		// console.log("Should 10");
-		// console.log(users);
 		expect(users.size).toEqual(1);
 		var user = users.get(creator.address);
 		expect(user).not.toBeUndefined();
@@ -85,8 +83,6 @@ describe('Deal', () => {
 		});
 
 		var users = await deal.getGetParticipants();
-		// console.log("Should 20");
-		// console.log(users);
 		expect(users.size).toEqual(1);
 		var user = users.get(creator.address);
 		expect(user).not.toBeUndefined();
@@ -179,15 +175,15 @@ describe('Deal', () => {
 
                // arbiter result
 
-		console.log(`Deal: ${deal.address}`);
-		console.log(`Deployer: ${deployer.address}`);
-		console.log(`Arbiter: ${arbiter.address}`);
-		console.log(`Second user: ${secondUser.address}`);
-
-		let debuInfo = await deal.getDebugInfo();
-		console.log(debuInfo);
-		users = await deal.getGetParticipants();
-		console.log(users);
+		// console.log(`Deal: ${deal.address}`);
+		// console.log(`Deployer: ${deployer.address}`);
+		// console.log(`Arbiter: ${arbiter.address}`);
+		// console.log(`Second user: ${secondUser.address}`);
+		//
+		// let debuInfo = await deal.getDebugInfo();
+		// console.log(debuInfo);
+		// users = await deal.getGetParticipants();
+		// console.log(users);
 
 		res = await deal.send(arbiter.getSender(), {
 			value: toNano('0.05')

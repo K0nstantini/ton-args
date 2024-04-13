@@ -5,12 +5,12 @@ import "./imports/models.tact";
 
 const MIN_GAS_STORAGE: Int = 20000000; // 0.02 TON
 const GAS_CREATE_DEAL: Int = 20000000; // 0.02 TON
-// const MIN_BET: Int = 1000000000; // 1 TON
+// const MIN_BET: Int = 100000000; // 0.1 TON
 
 message NewDeal {
     arbiter: Address;
     arbiterFee: Int as uint16;
-    amount: Int;
+    amount: Int as coins;
     approved: Bool;
 }
 
