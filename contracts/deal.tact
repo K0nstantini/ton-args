@@ -17,17 +17,17 @@ message Reward {
 struct User {
     addr: Address;
     amount: Int as coins;
-    approved: Int;
+    approved: Int as uint32;
     refused: Bool;
 }
 
 struct DealInfo {
     arbiter: Address;
-    arbiterFee: Int;
-    mainFee: Int;
+    arbiterFee: Int as uint16;
+    mainFee: Int as uint16;
     approved: Bool;
     draw: Bool;
-    lastCancel: Int;
+    lastCancel: Int as uint32;
     participants: map<Address, User>;
 }
 
@@ -36,10 +36,10 @@ contract Deal with Deployable, Ownable {
     arbiter: Address;
     arbiterFee: Int as uint16;
     mainFee: Int as uint16;
-    lastApproved: Int;
+    lastApproved: Int as uint32;
     approved: Bool;
     draw: Bool;
-    lastCancel: Int;
+    lastCancel: Int as uint32;
     seed: Int;
 
     users: map<Address, User>;
