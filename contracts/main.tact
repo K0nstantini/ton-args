@@ -11,7 +11,6 @@ message NewDeal {
     arbiter: Address;
     arbiterFee: Int as uint16;
     amount: Int as coins;
-    approved: Bool;
 }
 
 contract Main with Deployable, Ownable {
@@ -25,6 +24,7 @@ contract Main with Deployable, Ownable {
 
     receive(msg: NewDeal) {
         let ctx: Context = context();
+        require(ctx.sender != msg.arbiter, "Incorrect address");
 
         let balanceBefore: Int = myBalance() - ctx.value;
         let takeForStorage: Int = MIN_GAS_STORAGE - min(MIN_GAS_STORAGE, balanceBefore);
@@ -39,12 +39,24 @@ contract Main with Deployable, Ownable {
             mode: SendRemainingValue,
             body: CreateDeal{
                 from: ctx.sender,
-                amount: msg.amount,
-                approved: msg.approved
+                amount: msg.amount
             }.toCell(),
             code: winit.code,
             data: winit.data
         });
     }
+
+    receive("withdraw") {
+        self.requireOwner();
+        send(SendParameters{
+            to: self.owner,
+            value: myBalance() - MIN_GAS_STORAGE, 
+            bounce: false,
+            mode: SendDestroyIfZero,
+            body: "args fee".asComment()
+        });
+    }
+
+    receive("reward") { }
 }
 

@@ -55,8 +55,7 @@ describe('Main', () => {
 			$$type: 'NewDeal',
 			arbiter: arbiter.address,
 			arbiterFee: 10000n,
-			amount: toNano('10'),
-			approved: false
+			amount: toNano('10')
 		});
 
 		const deal = res.transactions[2].inMessage?.info.dest as Address;
