@@ -133,7 +133,6 @@ describe('Deal', () => {
     await approve(user1);
     await reward(arbiter, arbiter.address);
     await reward(arbiter, user1.address);
-
   });
 
   it('test10', async () => {
@@ -145,7 +144,40 @@ describe('Deal', () => {
     await approve(user2);
     await withdraw(user1);
     await reward(arbiter, user2.address);
+  });
 
+  it('test11', async () => {
+    deployNew();
+
+    await createDeal(user1, 10);
+    await addToDeal(user2, 10, true);
+    await approve(user1);
+    await withdraw(user2);
+    await reward(arbiter, arbiter.address);
+    await withdraw(user1);
+    await withdraw(user2);
+  });
+
+  it('test12', async () => {
+    deployNew();
+
+    await createDeal(user1, 10);
+    await addToDeal(user2, 10, true);
+    await withdraw(user1);
+    await addToDeal(user1, 10, true);
+    await approve(user2);
+    await reward(arbiter, arbiter.address);
+  });
+
+  it('test13', async () => {
+    deployNew();
+
+    await createDeal(user1, 10);
+    await addToDeal(user2, 10, true);
+    await approve(user1);
+    await withdraw(user1);
+    await withdraw(user2);
+    await reward(arbiter, user1.address);
   });
 
   async function deployNew() {
@@ -153,7 +185,6 @@ describe('Deal', () => {
       deployer.address, arbiter.address, 10000n, 5000n, 1n
     ));
   }
-
 
   async function createDeal(userContract: SandboxContract<TreasuryContract>, amount: number) {
     const res = await deal.send(deployer.getSender(), {
@@ -242,6 +273,9 @@ describe('Deal', () => {
   async function withdraw(userContract: SandboxContract<TreasuryContract>) {
     var info = await deal.getGetInfo();
     var user = info.participants.get(userContract.address);
+    const allOthersCanceled = info.participants.size > 1 && info.participants.values()
+    .filter(u => u.addr != user?.addr)
+    .every(u => u.refused);
 
     const res = await deal.send(userContract.getSender(), {
       value: toNano('0.05')
@@ -265,7 +299,7 @@ describe('Deal', () => {
 
 
     // ok, allow to withdraw
-    if (info.draw || !info.approved) {
+    if (info.draw || !info.approved || allOthersCanceled) {
       expect(res.transactions).toHaveTransaction({
         from: deal.address,
         to: userContract.address,
@@ -292,9 +326,11 @@ describe('Deal', () => {
       }
 
       // no user's approve after than last cancel time
-      var info = await deal.getGetInfo();
-      expect(info.lastCancel).toBeGreaterThan(0n);
-      checkApprove();
+      if (!info.draw) {
+        var info = await deal.getGetInfo();
+        expect(info.lastCancel).toBeGreaterThan(0n);
+        checkApprove();
+      }
       return;
     }
 

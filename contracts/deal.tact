@@ -107,12 +107,16 @@ contract Deal with Deployable, Ownable {
         require(usr != null, "Unknown participant");
         let user: User  = usr!!;
 
-        self.change_user(user, 0, 0, true);
+        if (self.approved && user.approved > self.lastCancel && self.usersApproved == 1) {
+            self.approved = false;
+        }
+        
+        let canWithdraw: Bool = !self.approved || self.draw;
 
-        if (!self.approved || self.draw) {
+        if (canWithdraw) {
             if (self.draw) {
-                let arbiterFee: Int = self.usersAmount.get_fee(self.arbiterFee);
-                let sumWithArbiterFee: Int = self.usersAmount - arbiterFee;
+                let arbiterFee: Int = user.amount.get_fee(self.arbiterFee);
+                let sumWithArbiterFee: Int = user.amount - arbiterFee;
                 let sumWithAllFee: Int  = sumWithArbiterFee - sumWithArbiterFee.get_fee(self.mainFee);
                 self.send_to_user(sender, sumWithAllFee);
                 self.send_to_user(self.arbiter, arbiterFee);
@@ -127,6 +131,8 @@ contract Deal with Deployable, Ownable {
             if (self.countUsers == 0) {
                 self.send_to_owner();
             }
+        } else {
+            self.change_user(user, 0, 0, true);
         }
     }
 
@@ -174,9 +180,9 @@ contract Deal with Deployable, Ownable {
             refused: refused
         });
 
-        if (user.approved == 0 && approved > 0) {
+        if (user.approved <= self.lastCancel && approved > 0) {
             self.usersApproved += 1;
-        } else if (user.approved > 0 && user.approved >= self.lastApproved && approved == 0) {
+        } else if (user.approved > self.lastCancel && approved == 0) {
             self.usersApproved -= 1;
         }
 
@@ -199,7 +205,7 @@ contract Deal with Deployable, Ownable {
         self.countUsers -= 1;
         self.usersAmount -= user.amount;
 
-        if (user.approved > 0 && user.approved >= self.lastApproved) {
+        if (user.approved > self.lastCancel) {
             self.usersApproved -= 1;
         }
         if (user.refused) {
