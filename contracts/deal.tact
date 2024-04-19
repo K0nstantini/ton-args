@@ -66,7 +66,7 @@ contract Deal with Deployable, Ownable {
 
     receive(msg: CreateDeal) {
         self.requireOwner();
-        self.add_user(msg.from, msg.amount, 0, false);
+        self.add_user(msg.from, msg.amount, 0);
         send(SendParameters{
             to: msg.from,
             value: ton("0.005"), 
@@ -79,13 +79,13 @@ contract Deal with Deployable, Ownable {
     receive(msg: AddUser) {
         let ctx: Context = context();
         require(!self.draw, "Deal closed");
-        require(ctx.value >= msg.amount, "Insufficient funds"); // add fee
+        require(ctx.value >= msg.amount, "Insufficient funds");
 
         let user: User? = self.users.get(ctx.sender);
 
         if (user == null) {
             let approved: Int = (msg.approved && self.countUsers > 0) ? self.inc_and_get_next_approved() : 0;
-            self.add_user(ctx.sender, msg.amount, approved, false);
+            self.add_user(ctx.sender, msg.amount, approved);
         } else {
             let approved: Int = (msg.approved && self.countUsers > 1) ? self.inc_and_get_next_approved() : 0;
             self.change_user(user!!, msg.amount, approved, false);
@@ -154,20 +154,18 @@ contract Deal with Deployable, Ownable {
         }
     }
 
-    fun add_user(addr: Address, amount: Int, approved: Int, refused: Bool) {
+    fun add_user(addr: Address, amount: Int, approved: Int) {
         self.users.set(addr, User{
             addr: addr,
             amount: amount,
             approved: approved,
-            refused: refused
+            refused: false
         });
 
         if (approved > 0) {
             self.usersApproved += 1;
         }
-        if (refused) {
-            self.usersRefused += 1;
-        }
+
         self.countUsers += 1;
         self.usersAmount += amount;
     }
@@ -238,11 +236,6 @@ contract Deal with Deployable, Ownable {
         });
 
     }
-
-    // TODO: del
-    // get fun get_participants(): map<Address, User> {
-    //     return self.users;
-    // }
 
     get fun get_info(): DealInfo {
         return DealInfo{
